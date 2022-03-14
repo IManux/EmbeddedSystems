@@ -1,5 +1,6 @@
 /*
-    struct queue ex1
+    eeprom queue ex1
+    tested with arduino uno
 */
 #include <EEPROM.h>
 
@@ -71,17 +72,58 @@ void loop()
         c = DBG.read();
 
         if (c == 'a') { // add
-                
+            MDATA_TEMPLATE d;
+            d.var1 = 10;
+            d.var2 = 20;
+            d.var3 = 30;
+            d.var4 = 40;
+            d.tm = 1647224007;
+            qee_add(mqdata, &d);            
         }
 
         if (c == 'n') { // get qty
-          
+            int n;
+            n = qee_items(mqdata);
+            DBG.print("Qty: ");
+            DBG.println(n);  
         }
 
-        if (c == 'g') { // get one 
-          
+        if (c == 'g') { // get one
+            uint8_t r;  
+            MDATA_TEMPLATE d;
+            r = qee_pop(mqdata, &d);      
+            if (r) {
+                DBG.print("var1: ");
+                DBG.println(d.var1);  
+                DBG.print("var2: ");
+                DBG.println(d.var2);
+                DBG.print("var3: ");
+                DBG.println(d.var3);
+                DBG.print("var4: ");
+                DBG.println(d.var4);
+                DBG.print("tm: ");
+                DBG.println(d.tm);
+            }
         }
 
+        if (c == 'p') {
+            uint8_t r;  
+            MDATA_TEMPLATE d;  
+            r = qee_peak(mqdata, &d);    
+            if (r) {
+                DBG.print("var1: ");
+                DBG.println(d.var1);  
+                DBG.print("var2: ");
+                DBG.println(d.var2);
+                DBG.print("var3: ");
+                DBG.println(d.var3);
+                DBG.print("var4: ");
+                DBG.println(d.var4);
+                DBG.print("tm: ");
+                DBG.println(d.tm);
+            }              
+        }
+        
         if (c == 'c') { // check queue
             DBG.print("qhead: ");
             DBG.println(mqdata->qhead);
@@ -91,6 +133,13 @@ void loop()
             DBG.println(mqdata->qmax);
             DBG.print("dsize: ");
             DBG.println(mqdata->dsize);
+        }
+
+        if (c == 'e') {
+            for (int i = 0; i < EEPROM_MEM_SIZE; i++) {
+                EEPROM.write(i, 0);  
+            }
+            DBG.println("EEPROM CLEAR");
         }
     }
     
@@ -186,7 +235,7 @@ uint8_t qee_add(struct qeeprom_t *mq, MDATA_TEMPLATE *md)
         EEPROM.write(bidx, p[i]);  
         ++bidx;
     }
-    qee_store_internal(mq);
+    
     mq->qhead = idx;
     qee_store_internal(mq);
     
@@ -213,19 +262,20 @@ uint8_t qee_pop(struct qeeprom_t *mq, MDATA_TEMPLATE *md)
         return 0;  
     }
     
-    MDATA_TEMPLATE *pmq;
+    MDATA_TEMPLATE pmq;
     uint8_t *p;
     uint8_t bsz;
     uint16_t bidx;
     
-    p = (uint8_t*)pmq;
+    p = (uint8_t*)&pmq;
     bsz = mq->dsize;
     bidx = EEPROM_MEM_OFFSET + (bsz * mq->qtail);
     for (uint8_t i = 0; i < bsz; i++) {
         p[i] = EEPROM.read(bidx);
-        ++bidx;  
+        ++bidx;
     }
-    memcpy(md, pmq, bsz);
+
+    memcpy(md, &pmq, bsz);
     mq->qtail = (mq->qtail + 1) % mq->qmax;
     qee_store_internal(mq);
     
@@ -238,19 +288,19 @@ uint8_t qee_peak(struct qeeprom_t *mq, MDATA_TEMPLATE *md)
         return 0;  
     }
     
-    MDATA_TEMPLATE *pmq;
+    MDATA_TEMPLATE pmq;
     uint8_t *p;
     uint8_t bsz;
     uint16_t bidx;
     
-    p = (uint8_t*)pmq;
+    p = (uint8_t*) &pmq;
     bsz = mq->dsize;
     bidx = EEPROM_MEM_OFFSET + (bsz * mq->qtail);
     for (uint8_t i = 0; i < bsz; i++) {
         p[i] = EEPROM.read(bidx);
         ++bidx;  
     }
-    memcpy(md, pmq, bsz);
+    memcpy(md, &pmq, bsz);
     
     return 1;  
 }
