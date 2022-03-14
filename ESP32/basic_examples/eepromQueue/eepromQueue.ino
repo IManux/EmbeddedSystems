@@ -1,6 +1,7 @@
 /*
     eeprom queue ex1
     tested with arduino uno
+    compatible with ESP32
 */
 #include <EEPROM.h>
 
@@ -49,7 +50,15 @@ void setup()
 {
     DBG.begin(9600);
     DBG.println("eepromQueue");
-    
+
+    #if defined (ESP32)
+    if (!EEPROM.begin(EEPROM_MEM_SIZE)) {
+        DBG.println("EEPROM.begin() Error");
+        while (true) {
+            delay(1000);  
+        } 
+    }
+    #endif
     mqdata = qee_init(20);
     qee_update_internal(mqdata);
     
@@ -139,6 +148,9 @@ void loop()
             for (int i = 0; i < EEPROM_MEM_SIZE; i++) {
                 EEPROM.write(i, 0);  
             }
+            #if defined (ESP32)
+            EEPROM.commit();
+            #endif
             DBG.println("EEPROM CLEAR");
         }
     }
@@ -173,6 +185,9 @@ void qee_store_internal(struct qeeprom_t *q)
     EEPROM.write(3, q->qhead);
     EEPROM.write(4, bcrc);
     EEPROM.write(1, 200);
+    #if defined (ESP32)
+    EEPROM.commit();
+    #endif
 }
 
 struct qeeprom_t* qee_init(uint8_t n)
@@ -235,7 +250,9 @@ uint8_t qee_add(struct qeeprom_t *mq, MDATA_TEMPLATE *md)
         EEPROM.write(bidx, p[i]);  
         ++bidx;
     }
-    
+    #if defined (ESP32)
+    EEPROM.commit();
+    #endif
     mq->qhead = idx;
     qee_store_internal(mq);
     
