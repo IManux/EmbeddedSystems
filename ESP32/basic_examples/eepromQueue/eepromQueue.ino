@@ -49,7 +49,9 @@ void setup()
     DBG.begin(9600);
     DBG.println("eepromQueue");
     
-    mqdata = qee_init(EEPROM_MEM_SIZE);
+    mqdata = qee_init(20);
+    qee_update_internal(mqdata);
+    
     if (mqdata == NULL) {
         DBG.println("mqdata init fail");
         while (true) {
@@ -68,34 +70,60 @@ void loop()
         char c;
         c = DBG.read();
 
+        if (c == 'a') { // add
+                
+        }
+
+        if (c == 'n') { // get qty
+          
+        }
+
+        if (c == 'g') { // get one 
+          
+        }
+
+        if (c == 'c') { // check queue
+            DBG.print("qhead: ");
+            DBG.println(mqdata->qhead);
+            DBG.print("qtail: ");
+            DBG.println(mqdata->qtail);
+            DBG.print("qmax: ");
+            DBG.println(mqdata->qmax);
+            DBG.print("dsize: ");
+            DBG.println(mqdata->dsize);
+        }
     }
     
 }
 
 void qee_update_internal(struct qeeprom_t *q)
 {
-    uint8_t btmp, btail, bhead, bcrc;
-    //get tail
-    btail = EEPROM.read(1);
-    bhead = EEPROM.read(2);
-    bcrc = EEPROM.read(3);
+    uint8_t btmp, btail, bhead, bcrc, r;
 
-    btmp = btail + bhead;
-    if (btmp == bcrc) {
-        q->qtail = btail;
-        q->qhead = bhead;  
-    }     
+    r = EEPROM.read(1);
+    //get
+    btail = EEPROM.read(2);
+    bhead = EEPROM.read(3);
+    bcrc = EEPROM.read(4);
+
+    if (r == 200) {
+        btmp = btail + bhead;
+        if (btmp == bcrc) {
+            q->qtail = btail;
+            q->qhead = bhead;  
+        }     
+    }
 }
 
 void qee_store_internal(struct qeeprom_t *q)
 {
     uint8_t bcrc;
     //store head, tail, crc
-    bcrc = q->qtail;
-    bcrc = bcrc + q->qhead;
-    EEPROM.write(1, q->qtail);
-    EEPROM.write(2, q->qhead);
-    EEPROM.write(3, bcrc);
+    bcrc = q->qtail + q->qhead;
+    EEPROM.write(2, q->qtail);
+    EEPROM.write(3, q->qhead);
+    EEPROM.write(4, bcrc);
+    EEPROM.write(1, 200);
 }
 
 struct qeeprom_t* qee_init(uint8_t n)
@@ -160,6 +188,7 @@ uint8_t qee_add(struct qeeprom_t *mq, MDATA_TEMPLATE *md)
     }
     qee_store_internal(mq);
     mq->qhead = idx;
+    qee_store_internal(mq);
     
     return 1;  
 }
@@ -198,6 +227,7 @@ uint8_t qee_pop(struct qeeprom_t *mq, MDATA_TEMPLATE *md)
     }
     memcpy(md, pmq, bsz);
     mq->qtail = (mq->qtail + 1) % mq->qmax;
+    qee_store_internal(mq);
     
     return 1;  
 }
