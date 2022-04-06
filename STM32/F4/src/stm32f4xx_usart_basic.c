@@ -1,11 +1,7 @@
 /*
  * stm32f4xx_usart_basic.c
  *
- *  Created on: Apr 1, 2022
- *      Author: ingma
- *
- *
- *
+ *  Author: imanux dev
  *
  *    HW		TX		RX		AF
  *	USART1		PA9		PA10
@@ -26,12 +22,19 @@
 #include "stm32f4xx_usart_basic.h"
 
 
-#define USART1_QUEUE_SIZE	128
-#define USART2_QUEUE_SIZE	128
-#define USART3_QUEUE_SIZE	128
-#define UART4_QUEUE_SIZE	128
-#define UART5_QUEUE_SIZE	128
-#define USART6_QUEUE_SIZE	128
+#define USART1_RX_BUFF_SIZE	128
+#define USART2_RX_BUFF_SIZE	128
+#define USART3_RX_BUFF_SIZE	128
+#define UART4_RX_BUFF_SIZE	128
+#define UART5_RX_BUFF_SIZE	128
+#define USART6_RX_BUFF_SIZE	128
+
+#define USART1_TX_BUFF_SIZE	128
+#define USART2_TX_BUFF_SIZE	128
+#define USART3_TX_BUFF_SIZE	128
+#define UART4_TX_BUFF_SIZE	128
+#define UART5_TX_BUFF_SIZE	128
+#define USART6_TX_BUFF_SIZE	128
 
 //Queue
 struct usart_queue_t {
@@ -44,37 +47,65 @@ struct usart_queue_t {
 struct usartx_t {
 	USART_TypeDef *hw;
 	uint32_t state;
+	uint32_t tx_buff_idx;
+	uint32_t tx_buff_len;
+	uint32_t tx_buff_max;
+	uint8_t *tx_buff_arr;
 	struct usart_queue_t queue_rx;
 };
 
 /*	usart handle definition */
 struct usartx_t _usart1_drv = { USART1,
 						.state = 0,
+						.tx_buff_idx = 0,
+						.tx_buff_len = 0,
+						.tx_buff_max = 0,
+						.tx_buff_arr = NULL,
 						.queue_rx = { 0, 0, 0, NULL }
 };
 
 struct usartx_t _usart2_drv = { USART2,
 						.state = 0,
+						.tx_buff_idx = 0,
+						.tx_buff_len = 0,
+						.tx_buff_max = 0,
+						.tx_buff_arr = NULL,
 						.queue_rx = { 0, 0, 0, NULL }
 };
 
 struct usartx_t _usart3_drv = { USART3,
 						.state = 0,
+						.tx_buff_idx = 0,
+						.tx_buff_len = 0,
+						.tx_buff_max = 0,
+						.tx_buff_arr = NULL,
 						.queue_rx = { 0, 0, 0, NULL }
 };
 
 struct usartx_t _uart4_drv = { UART4,
 						.state = 0,
+						.tx_buff_idx = 0,
+						.tx_buff_len = 0,
+						.tx_buff_max = 0,
+						.tx_buff_arr = NULL,
 						.queue_rx = { 0, 0, 0, NULL }
 };
 
 struct usartx_t _uart5_drv = { UART5,
 						.state = 0,
+						.tx_buff_idx = 0,
+						.tx_buff_len = 0,
+						.tx_buff_max = 0,
+						.tx_buff_arr = NULL,
 						.queue_rx = { 0, 0, 0, NULL }
 };
 
 struct usartx_t _usart6_drv = { USART6,
 						.state = 0,
+						.tx_buff_idx = 0,
+						.tx_buff_len = 0,
+						.tx_buff_max = 0,
+						.tx_buff_arr = NULL,
 						.queue_rx = { 0, 0, 0, NULL }
 };
 
@@ -101,7 +132,7 @@ static void __usartx_queue_add(struct usart_queue_t *q, uint8_t b)
 uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 {
 	uint32_t tx_pin, rx_pin;
-	uint32_t queue_sz;
+	uint32_t rx_buff_sz, tx_buff_sz;
 	uint32_t gpiox_ahb1, gpio_afx;
 	uint32_t vapbx, wapbx;
 
@@ -120,7 +151,8 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 		rx_pin = LL_GPIO_PIN_7;
 		gpiox_port = GPIOB;
 		irq = USART1_IRQn;
-		queue_sz = USART1_QUEUE_SIZE;
+		rx_buff_sz = USART1_RX_BUFF_SIZE;
+		tx_buff_sz = USART1_TX_BUFF_SIZE;
 		gpiox_ahb1 = LL_AHB1_GRP1_PERIPH_GPIOB;
 		wapbx = 2;
 		vapbx = LL_APB2_GRP1_PERIPH_USART1;
@@ -131,7 +163,8 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 		rx_pin = LL_GPIO_PIN_3;
 		gpiox_port = GPIOA;
 		irq = USART2_IRQn;
-		queue_sz = USART2_QUEUE_SIZE;
+		rx_buff_sz = USART2_RX_BUFF_SIZE;
+		tx_buff_sz = USART2_TX_BUFF_SIZE;
 		gpiox_ahb1 = LL_AHB1_GRP1_PERIPH_GPIOA;
 		wapbx = 1;
 		vapbx = LL_APB1_GRP1_PERIPH_USART2;
@@ -142,7 +175,8 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 		rx_pin = LL_GPIO_PIN_11;
 		gpiox_port = GPIOB;
 		irq = USART3_IRQn;
-		queue_sz = USART3_QUEUE_SIZE;
+		rx_buff_sz = USART3_RX_BUFF_SIZE;
+		tx_buff_sz = USART3_TX_BUFF_SIZE;
 		gpiox_ahb1 = LL_AHB1_GRP1_PERIPH_GPIOB;
 		wapbx = 1;
 		vapbx = LL_APB1_GRP1_PERIPH_USART3;
@@ -153,7 +187,8 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 		rx_pin = LL_GPIO_PIN_11;
 		gpiox_port = GPIOC;
 		irq = UART4_IRQn;
-		queue_sz = UART4_QUEUE_SIZE;
+		rx_buff_sz = UART4_RX_BUFF_SIZE;
+		tx_buff_sz = UART4_TX_BUFF_SIZE;
 		gpiox_ahb1 = LL_AHB1_GRP1_PERIPH_GPIOC;
 		wapbx = 1;
 		vapbx = LL_APB1_GRP1_PERIPH_UART4;
@@ -164,7 +199,8 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 		rx_pin = 0x0UL; // d2
 		gpiox_port = GPIOC;
 		irq = UART5_IRQn;
-		queue_sz = UART4_QUEUE_SIZE;
+		rx_buff_sz = UART5_RX_BUFF_SIZE;
+		tx_buff_sz = UART5_TX_BUFF_SIZE;
 		gpiox_ahb1 = LL_AHB1_GRP1_PERIPH_GPIOC;
 		wapbx = 1;
 		vapbx = LL_APB1_GRP1_PERIPH_UART5;
@@ -175,7 +211,8 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 		rx_pin = LL_GPIO_PIN_7;
 		irq = USART6_IRQn;
 		gpiox_port = GPIOC;
-		queue_sz = USART6_QUEUE_SIZE;
+		rx_buff_sz = USART6_RX_BUFF_SIZE;
+		tx_buff_sz = USART6_TX_BUFF_SIZE;
 		gpiox_ahb1 = LL_AHB1_GRP1_PERIPH_GPIOC;
 		wapbx = 2;
 		vapbx = LL_APB2_GRP1_PERIPH_USART6;
@@ -186,13 +223,15 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 	}
 
 	/*	Allocate MEM  */
-	usart->queue_rx.qbuff = (uint8_t*) malloc(queue_sz);
+	usart->queue_rx.qbuff = (uint8_t*) malloc(rx_buff_sz);
+	usart->tx_buff_arr = (uint8_t*) malloc(tx_buff_sz);
 
-	if (usart->queue_rx.qbuff == NULL) {
+	if (usart->queue_rx.qbuff == NULL || usart->tx_buff_arr == NULL) {
 		return 3;
 	}
 
-	usart->queue_rx.qmax = USART2_QUEUE_SIZE;
+	usart->queue_rx.qmax = rx_buff_sz;
+	usart->tx_buff_max = tx_buff_sz;
 
 	/* init rcc */
 	if (wapbx == 1) {
@@ -230,12 +269,13 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 	USART_InitStruct.OverSampling = LL_USART_OVERSAMPLING_16;
 	LL_USART_Init(usart->hw, &USART_InitStruct);
 	LL_USART_ConfigAsyncMode(usart->hw);
-	LL_USART_EnableIT_RXNE(usart->hw);
-
 
     /* NVIC USART Interrupt - Global */
     NVIC_SetPriority(irq, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
     NVIC_EnableIRQ(irq);
+
+    /* Enable RXNE */
+    LL_USART_EnableIT_RXNE(usart->hw);
 
 	/*	Enable USART  */
 	LL_USART_Enable(usart->hw);
@@ -245,9 +285,42 @@ uint8_t usartx_init(struct usartx_t *usart, uint32_t bauds)
 	return 0;
 }
 
+uint8_t usartx_write_nb(struct usartx_t *usart, uint8_t *buf, uint32_t len, uint32_t tout)
+{
+	uint32_t err;
+	uint32_t *tx_len;
+
+	err = 1;	// Timeout
+	tx_len = &usart->tx_buff_len;
+
+	while (tout && *tx_len) {
+		LL_mDelay(0);
+		tout--;
+	}
+
+	if (!*tx_len) {
+		err = 0;
+		if (len > usart->tx_buff_max) {
+			len = usart->tx_buff_max;
+			err = 2;
+		}
+		memcpy(&usart->tx_buff_arr[0], buf, len);
+		usart->tx_buff_len = len;
+		usart->tx_buff_idx = 0;
+		//Enable TXE Interrupt
+		LL_USART_EnableIT_TXE(usart->hw);
+	}
+
+	return err;
+}
+
 uint32_t usartx_write(struct usartx_t *usart, uint8_t *buf, uint32_t len)
 {
 	uint32_t i;
+
+	LL_USART_DisableIT_TXE(usart->hw);
+	usart->tx_buff_len = 0;
+
 	for (i = 0; i < len; i++) {
 		while (!(usart->hw->SR & USART_SR_TXE));
 	    usart->hw->DR = buf[i];
@@ -255,6 +328,19 @@ uint32_t usartx_write(struct usartx_t *usart, uint8_t *buf, uint32_t len)
 	while (!(usart->hw->SR & USART_SR_TC));
 
 	return i;
+}
+
+uint8_t usartx_print_nb(struct usartx_t *usart, char *buf, uint32_t tout)
+{
+	uint8_t err;
+	uint32_t len;
+	uint8_t *p;
+
+	len = strlen(buf);
+	p = (uint8_t*) &buf[0];
+	err = usartx_write_nb(usart, p, len, tout);
+
+	return err;
 }
 
 uint32_t usartx_print(struct usartx_t *usart, char *buf)
@@ -266,6 +352,17 @@ uint32_t usartx_print(struct usartx_t *usart, char *buf)
 	p = (uint8_t*) &buf[0];
 
 	return usartx_write(usart, p, len);
+}
+
+uint8_t usartx_print_char_nb(struct usartx_t *usart, char ch, uint32_t tout)
+{
+	uint8_t err;
+	uint8_t b;
+
+	b = ch;
+	err = usartx_write_nb(usart, &b, 1, tout);
+
+	return err;
 }
 
 uint32_t usartx_print_char(struct usartx_t *usart, char ch)
@@ -383,6 +480,11 @@ uint32_t usartx_read_string_until(struct usartx_t *usart, char *buff, uint32_t l
 	return i;
 }
 
+uint8_t usartx_is_tx_sending(struct usartx_t *usart)
+{
+	return (usart->tx_buff_len != 0);
+}
+
 /**************************************************************
 			IRQ Handlers
 ***************************************************************/
@@ -392,11 +494,21 @@ static void __usartx_irq_handler(struct usartx_t *usart)
     uint8_t b;
 
     reg_sr = usart->hw->SR;
-    // receive buffer is not empty
-    if(reg_sr & USART_SR_RXNE) {
+
+    if(reg_sr & USART_SR_RXNE) {	// data received?
         b = (uint8_t) usart->hw->DR;
         __usartx_queue_add(&usart->queue_rx, b);
     }
+    else if (reg_sr & USART_SR_TXE) {	//
+    	if (usart->tx_buff_len) {
+    		usart->hw->DR = usart->tx_buff_arr[usart->tx_buff_idx];
+    		usart->tx_buff_idx++;
+    		usart->tx_buff_len--;
+    	} else {
+    		LL_USART_DisableIT_TXE(usart->hw);
+    	}
+    }
+
 }
 
 void USART1_IRQHandler(void)
